@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>Takao</title>
+  <style>
+    :root {
+      --bg:       #0e0e0e;
+      --surface:  #1a1a1a;
+      --border:   #2a2a2a;
+      --amber:    #c97c3a;
+      --amber-dim:#6b3f18;
+      --text:     #e8e0d5;
+      --muted:    #5a5550;
+      --mono:     'SF Mono','Fira Code','Cascadia Code',monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      width:100%;height:100%;
+      background:var(--bg);color:var(--text);
+      font-family:var(--mono);
+      overflow:hidden;touch-action:none;
+      -webkit-font-smoothing:antialiased;
+    }
+    .screen{
+      position:fixed;inset:0;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      transition:opacity .5s ease;
+    }
+    .screen.hidden{opacity:0;pointer-events:none}
+
+    /* ── START SCREEN ── */
+    #screen-start{gap:32px;z-index:100}
+    #start-title{
+      font-size:11px;letter-spacing:.22em;
+      text-transform:uppercase;color:var(--muted);
+    }
+    #start-btn{
+      width:72px;height:72px;border-radius:50%;
+      background:var(--surface);border:1.5px solid var(--amber-dim);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:border-color .2s,box-shadow .2s,background .2s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    #start-btn:active{
+      background:var(--amber-dim);border-color:var(--amber);
+      box-shadow:0 0 24px rgba(201,124,58,.25);
+    }
+    #start-btn-inner{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--amber);box-shadow:0 0 10px rgba(201,124,58,.7);
+    }
+    #start-hint{
+      font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--muted);text-align:center;line-height:1.8;
+    }
+    #status-msg{
+      font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--amber);min-height:16px;text-align:center;
+    }
+    .spinner{
+      width:24px;height:24px;border:2px solid var(--border);
+      border-top-color:var(--amber);border-radius:50%;
+      animation:spin .6s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── ENV CHECK SCREEN ── */
+    #screen-env{gap:12px;padding:0 24px;z-index:90}
+    #env-video-wrap{
+      width:100%;max-width:320px;
+      height:auto;aspect-ratio:3/4;
+      position:relative;border-radius:12px;overflow:hidden;
+      background:var(--surface);border:1px solid var(--border);
+    }
+    #env-video{
+      width:100%;height:100%;object-fit:cover;
+      transform:scaleX(-1);display:block;
+    }
+    #env-face-oval{
+      position:absolute;top:10%;left:15%;
+      width:70%;height:80%;
+      pointer-events:none;
+    }
+    #env-face-oval svg{width:100%;height:100%}
+    .checklist{width:100%;max-width:320px;display:flex;flex-direction:column;gap:8px}
+    .check-row{
+      display:flex;align-items:center;gap:10px;
+      font-size:10px;letter-spacing:.1em;color:var(--text);
+    }
+    .check-icon{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .check-icon.pass{color:var(--amber)}
+    .check-icon.fail{color:#c0392b}
+    .check-icon.pending{color:var(--muted)}
+    .check-label{color:var(--muted);font-size:9px;letter-spacing:.12em;text-transform:uppercase;flex-shrink:0;width:52px}
+    .check-tip{color:var(--muted);font-size:8px;letter-spacing:.08em;opacity:.7}
+    #skip-env{
+      position:absolute;bottom:24px;right:24px;
+      font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--amber);cursor:pointer;background:none;border:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    #debug-info{
+      position:absolute;bottom:60px;left:24px;
+      font-size:9px;color:var(--muted);line-height:1.6;text-align:left;
+      pointer-events:none;z-index:99;
+    }
+
+    /* ── CALIBRATION SCREEN ── */
+    #screen-cal{z-index:80}
+    #cal-title{
+      font-size:11px;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--muted);margin-top:48px;
+    }
+    #cal-subtitle{
+      font-size:9px;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--muted);opacity:.6;
+    }
+    #cal-dots-container{position:fixed;inset:0;pointer-events:none;z-index:81}
+    #cal-dots-container .cal-dot{pointer-events:auto}
+    .cal-dot{
+      position:fixed;width:44px;height:44px;
+      border-radius:50%;background:var(--surface);
+      border:1.5px solid var(--border);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;-webkit-tap-highlight-color:transparent;
+      transition:border-color .3s,background .3s,box-shadow .3s,opacity .3s;
+      transform:translate(-50%,-50%);
+    }
+    .cal-dot.dim{opacity:.25}
+    .cal-dot.active{
+      border-color:var(--amber);background:var(--amber-dim);
+      box-shadow:0 0 20px rgba(201,124,58,.2);
+    }
+    .cal-dot.done{
+      border-color:var(--amber);background:var(--amber);
+      box-shadow:0 0 20px rgba(201,124,58,.3);opacity:1;
+    }
+    .cal-dot-inner{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--amber);transition:opacity .3s;
+    }
+    .cal-dot.done .cal-dot-inner{background:var(--bg)}
+    .cal-ring-svg{
+      position:absolute;width:100%;height:100%;
+      top:0;left:0;transform:rotate(-90deg);
+      pointer-events:none;
+    }
+    .cal-ring-svg circle{
+      fill:none;stroke:var(--amber);
+      stroke-width:2;stroke-linecap:round;
+      transition:stroke-dashoffset .2s linear;
+    }
+    @keyframes pulse-ring{
+      0%{box-shadow:0 0 0 0 rgba(201,124,58,.4)}
+      70%{box-shadow:0 0 0 12px rgba(201,124,58,0)}
+      100%{box-shadow:0 0 0 0 rgba(201,124,58,0)}
+    }
+    .cal-dot.active .cal-dot-inner{animation:pulse-ring 1.2s infinite}
+    #cal-progress-bar{
+      position:fixed;bottom:48px;left:50%;transform:translateX(-50%);
+      font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--muted);text-align:center;
+    }
+    #cal-progress-fill{
+      margin-top:8px;width:160px;height:2px;background:var(--border);
+      border-radius:2px;overflow:hidden;
+    }
+    #cal-progress-fill-bar{height:100%;width:0%;background:var(--amber);transition:width .15s linear;}
+
+    /* ── VALIDATION SCREEN ── */
+    #screen-validate{z-index:70}
+    #val-title{
+      font-size:11px;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--muted);
+      position:fixed;top:48px;left:50%;transform:translateX(-50%);
+    }
+    #val-subtitle{
+      font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--muted);
+      position:fixed;top:72px;left:50%;transform:translateX(-50%);
+      white-space:nowrap;
+    }
+    #val-dot{
+      position:fixed;width:12px;height:12px;border-radius:50%;
+      background:var(--amber);
+      box-shadow:0 0 16px rgba(201,124,58,.6);
+      transform:translate(-50%,-50%);
+      transition:left .3s ease,top .3s ease;display:none;
+    }
+    #val-progress{
+      position:fixed;bottom:88px;left:50%;transform:translateX(-50%);
+      font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--muted);
+    }
+    #val-result{
+      position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
+      font-size:11px;letter-spacing:.12em;
+      text-transform:uppercase;text-align:center;white-space:nowrap;
+    }
+    #val-result.good{color:var(--amber)}
+    #val-result.poor{color:#c94a3a}
+    .hidden{display:none!important}
+
+    /* ── GAZE APP SCREEN ── */
+    #screen-app{flex-direction:column;justify-content:stretch;align-items:stretch;gap:0;z-index:10}
+    #grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr;padding:32px 24px 16px;gap:0}
+    .cell{display:flex;align-items:center;justify-content:center}
+    .orb{
+      width:52px;height:52px;border-radius:50%;background:var(--surface);
+      border:1.5px solid var(--border);
+      transition:width .35s cubic-bezier(.34,1.56,.64,1),height .35s cubic-bezier(.34,1.56,.64,1),background .3s ease,border-color .3s ease,box-shadow .3s ease;
+    }
+    .orb.active{width:86px;height:86px;background:var(--amber-dim);border-color:var(--amber);box-shadow:0 0 32px rgba(201,124,58,.18)}
+    .orb.confirmed{width:86px;height:86px;background:var(--amber);border-color:var(--amber);box-shadow:0 0 40px rgba(201,124,58,.35)}
+
+    #statusbar{
+      height:72px;border-top:1px solid var(--border);
+      display:grid;grid-template-columns:1fr 1fr 1fr;
+      align-items:center;padding:0 24px;
+    }
+    .stat{display:flex;flex-direction:column;gap:4px}
+    .stat:nth-child(2){align-items:center}
+    .stat:nth-child(3){align-items:flex-end}
+    .stat-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+    .stat-value{font-size:13px;letter-spacing:.04em}
+    #detected-val{font-size:20px;color:var(--amber)}
+
+    #gaze-cursor{
+      position:fixed;width:14px;height:14px;border-radius:50%;
+      background:rgba(201,124,58,.5);border:1px solid rgba(201,124,58,.85);
+      pointer-events:none;transform:translate(-50%,-50%);z-index:999;
+      display:none;transition:left .06s linear,top .06s linear;
+    }
+
+    #feedback-overlay {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      min-width: 160px;
+    }
+    #feedback-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #feedback-orb-label {
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #feedback-buttons {
+      display: flex;
+      gap: 16px;
+    }
+    #feedback-buttons button {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #feedback-yes:hover, #feedback-yes:active {
+      background: rgba(201,124,58,0.2);
+      border-color: var(--amber);
+    }
+    #feedback-no:hover, #feedback-no:active {
+      background: rgba(201,74,58,0.2);
+      border-color: #c94a3a;
+    }
+    #feedback-timer-bar {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+    }
+    #feedback-timer-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--amber);
+      transition: width 1.5s linear;
+    }
+
+    /* hide webgazer injected UI */
+    #webgazerVideoFeed,
+    #webgazerFaceOverlay,
+    #webgazerFaceFeedbackBox,
+    #webgazerGazeDot{display:none!important}
+    video[src*="webgazer"]{position:fixed!important;top:-9999px!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+  </style>
+</head>
+<body>
+
+<!-- ── SCREEN 1: START ── -->
+<div class="screen" id="screen-start">
+  <div id="start-title">takao</div>
+  <button id="start-btn" aria-label="Start">
+    <div id="start-btn-inner"></div>
+  </button>
+  <div id="start-hint">tap to begin<br>camera required</div>
+  <div id="status-msg"></div>
+</div>
+
+<!-- ── SCREEN 2: ENVIRONMENT CHECK ── -->
+<div class="screen hidden" id="screen-env">
+  <div id="env-video-wrap">
+    <video id="env-video" autoplay playsinline muted></video>
+    <div id="env-face-oval">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="50" rx="42" ry="55" fill="none" stroke="var(--amber-dim)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+      </svg>
+    </div>
+  </div>
+  <div class="checklist" id="checklist">
+    <div class="check-row">
+      <span class="check-icon pending" id="ck-bright-icon">○</span>
+      <span class="check-label">Lighting</span>
+      <span class="check-tip" id="ck-bright-tip">find brighter light or face a window</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon pending" id="ck-face-icon">○</span>
+      <span class="check-label">Face</span>
+      <span class="check-tip" id="ck-face-tip">align face to the oval above</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon pending" id="ck-stab-icon">○</span>
+      <span class="check-label">Stability</span>
+      <span class="check-tip" id="ck-stab-tip">hold phone steady at arm's length</span>
+    </div>
+  </div>
+  <button id="skip-env">skip checks →</button>
+  <div id="debug-info">
+    wgVideo: polling<br>
+    brightness: —<br>
+    prediction: —<br>
+    videoWidth: —
+  </div>
+</div>
+
+<!-- ── SCREEN 3: CALIBRATION ── -->
+<div class="screen hidden" id="screen-cal">
+  <div id="cal-title">calibration</div>
+  <div id="cal-subtitle">tap each dot while looking at it</div>
+  <div id="cal-dots-container"></div>
+  <div id="cal-progress-bar">
+    <span id="cal-count">0</span> / 27
+    <div id="cal-progress-fill"><div id="cal-progress-fill-bar"></div></div>
+  </div>
+  <!-- tap for debug toggle -->
+  <div id="debug-toggle" style="position:fixed;bottom:12px;left:12px;font-size:8px;color:transparent;z-index:100;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent">v1.0.0</div>
+</div>
+
+<!-- ── SCREEN 4: VALIDATION ── -->
+<div class="screen hidden" id="screen-validate">
+  <div id="val-title">validating</div>
+  <div id="val-subtitle">look at each dot as it appears</div>
+  <div id="val-dot"></div>
+  <div id="val-progress">0 / 3</div>
+  <div id="val-result" class="hidden"></div>
+</div>
+
+<!-- ── SCREEN 5: GAZE APP ── -->
+<div class="screen hidden" id="screen-app">
+  <div id="grid">
+    <div class="cell"><div class="orb" data-id="1"></div></div>
+    <div class="cell"><div class="orb" data-id="2"></div></div>
+    <div class="cell"><div class="orb" data-id="3"></div></div>
+    <div class="cell"><div class="orb" data-id="4"></div></div>
+    <div class="cell"><div class="orb" data-id="5"></div></div>
+    <div class="cell"><div class="orb" data-id="6"></div></div>
+  </div>
+  <div id="feedback-overlay">
+    <div id="feedback-orb-label">orb #3</div>
+    <div id="feedback-buttons">
+      <button id="feedback-yes">✓</button>
+      <button id="feedback-no">✗</button>
+    </div>
+    <div id="feedback-timer-bar"><div id="feedback-timer-fill"></div></div>
+  </div>
+  <div id="statusbar">
+    <div class="stat"><span class="stat-label">position</span><span class="stat-value" id="pos-val">—</span></div>
+    <div class="stat"><span class="stat-label">detected</span><span class="stat-value" id="detected-val">—</span></div>
+    <div class="stat"><span class="stat-label">confidence</span><span class="stat-value" id="conf-val">—</span></div>
+  </div>
+</div>
+
+<div id="gaze-cursor"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/webgazer@2.1.0/dist/webgazer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+<script>
+(() => {
+  const SAMPLE_BUFFER_MAX = 60;
+  const DWELL_MS          = 1200;
+  const SMOOTH            = 0.18;
+  const PASS_DURATION = 1500;
+  const CHECK_INTERVAL= 500;
+  const SCHEMA_VERSION = 1;
+
+  // ── State ──
+  let gx = 0, gy = 0, sx = 0, sy = 0;
+  let dwellTimer = null, dwellTarget = null, activeOrb = null;
+  let dwellSamples = [];
+  let blinkDetected = false;
+  let leftEyeOpenness  = 1.0;
+  let rightEyeOpenness = 1.0;
+  let mpData = null;
+  let isReady = false;
+  let sessionId = crypto.randomUUID();
+  let buffer = [];
+  let envChecksPassedSince = null;
+  let currentCalDot = 0, calTotalTaps = 0;
+  let calDotEls = [];
+  let calArcCircles = [];
+  let calTapsPerDot = [];
+  let envInterval = null;
+  let wgVideo = null;
+  let hiddenCanvas = null, hiddenCtx = null;
+  let videoReadySince = 0;
+  let cameraW = 0;
+  let cameraH = 0;
+  let currentOrbResetCount = 0;
+  let calibrationErrorPx = null;
+  let validationScores   = [];
+  let pendingFeedback = null;   // { buttonId, args: allConfirmArgs }
+  let feedbackTimer   = null;
+
+  // ── DOM ──
+  const $ = id => document.getElementById(id);
+  const screens = {
+    start: $('screen-start'),
+    env:   $('screen-env'),
+    cal:   $('screen-cal'),
+    validate: $('screen-validate'),
+    app:   $('screen-app'),
+  };
+  const cursor    = $('gaze-cursor');
+  const posVal    = $('pos-val');
+  const detVal    = $('detected-val');
+  const confVal   = $('conf-val');
+  const statusMsg = $('status-msg');
+  const orbs      = [...document.querySelectorAll('.orb')];
+  const calCount  = $('cal-count');
+  const calBar    = $('cal-progress-fill-bar');
+  const calDotsContainer = $('cal-dots-container');
+  const debugInfo = $('debug-info');
+  const debugToggle = $('debug-toggle');
+
+  function showScreen(name) {
+    Object.entries(screens).forEach(([k, el]) => {
+      el.classList.toggle('hidden', k !== name);
+    });
+  }
+
+  // ── HELPERS ──
+  function getWgVideo() {
+    return new Promise(resolve => {
+      const startedAt = Date.now();
+      const check = () => {
+        let v = document.getElementById('webgazerVideoFeed');
+        if (v && v.videoWidth > 0) return resolve(v);
+        if (Date.now() - startedAt > 5000) {
+          v = document.querySelector('video');
+          if (v && v.videoWidth > 0) return resolve(v);
+        }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+  }
+
+  function randPixels(w, h, n) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      pts.push({
+        x: Math.floor(w * 0.25 + Math.random() * w * 0.5),
+        y: Math.floor(h * 0.25 + Math.random() * h * 0.5),
+      });
+    }
+    return pts;
+  }
+
+  function checkBrightness() {
+    if (!hiddenCanvas || !hiddenCtx || !wgVideo) return false;
+    const vw = wgVideo.videoWidth, vh = wgVideo.videoHeight;
+    if (!vw || !vh) return false;
+    hiddenCanvas.width = vw;
+    hiddenCanvas.height = vh;
+    hiddenCtx.drawImage(wgVideo, 0, 0, vw, vh);
+    const pts = randPixels(vw, vh, 200);
+    let sum = 0;
+    for (const p of pts) {
+      const d = hiddenCtx.getImageData(p.x, p.y, 1, 1).data;
+      sum += (d[0] + d[1] + d[2]) / 3;
+    }
+    return (sum / pts.length) > 60;
+  }
+
+  function checkFace() {
+    if (!wgVideo) return false;
+    return wgVideo.videoWidth > 0 && wgVideo.videoHeight > 0 && wgVideo.readyState >= 2;
+  }
+
+  function checkStability() {
+    if (!wgVideo) return false;
+    if (wgVideo.readyState >= 2) {
+      if (videoReadySince === 0) videoReadySince = Date.now();
+      return (Date.now() - videoReadySince) >= 2000;
+    }
+    return false;
+  }
+
+  function computeGazeStats(samples) {
+    if (!samples || samples.length < 2) {
+      return { velocity_mean: 0, velocity_max: 0, stability_score: 100 };
+    }
+
+    // Compute frame-to-frame velocities (px/ms)
+    const velocities = [];
+    for (let i = 1; i < samples.length; i++) {
+      const dt = samples[i].ts - samples[i-1].ts;
+      if (dt <= 0) continue;
+      const dx = samples[i].x - samples[i-1].x;
+      const dy = samples[i].y - samples[i-1].y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      velocities.push(dist / dt);  // px/ms
+    }
+
+    if (velocities.length === 0) {
+      return { velocity_mean: 0, velocity_max: 0, stability_score: 100 };
+    }
+
+    const velocityMean = velocities.reduce((a,b) => a+b, 0) / velocities.length;
+    const velocityMax  = Math.max(...velocities);
+
+    // Stability score: 100 = perfectly stable, 0 = very noisy
+    const stabilityScore = Math.max(0, Math.round(100 * (1 - velocityMean / 2.0)));
+
+    return {
+      velocity_mean: Math.round(velocityMean * 1000) / 1000,
+      velocity_max:  Math.round(velocityMax  * 1000) / 1000,
+      stability_score: stabilityScore,
+    };
+  }
+
+  function setCheckIcon(id, state) {
+    const el = $(id);
+    if (!el) return;
+    el.className = 'check-icon';
+    if (state === 'pass') { el.textContent = '✓'; el.classList.add('pass'); }
+    else if (state === 'fail') { el.textContent = '✗'; el.classList.add('fail'); }
+    else if (state === 'checking') { el.textContent = '◌'; }
+    else { el.textContent = '○'; el.classList.add('pending'); }
+  }
+
+  // ── ENV CHECK LOOP ──
+  async function runEnvCheck() {
+    const bright = checkBrightness();
+    const face = checkFace();
+    const stab = checkStability();
+
+    setCheckIcon('ck-bright-icon', bright ? 'pass' : 'fail');
+    setCheckIcon('ck-face-icon', face ? 'pass' : 'fail');
+    setCheckIcon('ck-stab-icon', stab ? 'pass' : 'fail');
+
+    if (debugInfo) {
+      debugInfo.innerHTML =
+        'wgVideo: ' + (wgVideo ? 'found' : 'polling') + '<br>' +
+        'brightness: ' + (bright ? 'pass' : 'fail') + '<br>' +
+        'prediction: — (pre-cal)<br>' +
+        'videoWidth: ' + (wgVideo ? wgVideo.videoWidth : '—');
+    }
+
+    if (bright && face && stab) {
+      if (!envChecksPassedSince) envChecksPassedSince = Date.now();
+      else if (Date.now() - envChecksPassedSince >= PASS_DURATION) {
+        clearInterval(envInterval);
+        startCalibration();
+      }
+    } else {
+      envChecksPassedSince = null;
+    }
+  }
+
+  // ── CALIBRATION ──
+  function buildCalDots() {
+    // Fixed positions: 15%/50%/85% x, 15%/50%/78% y
+    const xs = ['15%', '50%', '85%'];
+    const ys = ['15%', '50%', '78%'];
+    let idx = 0;
+    for (const y of ys) {
+      for (const x of xs) {
+        const dot = document.createElement('div');
+        dot.className = 'cal-dot dim';
+        dot.style.left = x;
+        dot.style.top = y;
+        const inner = document.createElement('div');
+        inner.className = 'cal-dot-inner';
+        dot.appendChild(inner);
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'cal-ring-svg');
+        svg.setAttribute('viewBox', '0 0 44 44');
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '22');
+        circle.setAttribute('cy', '22');
+        circle.setAttribute('r', '19');
+        circle.setAttribute('stroke-dasharray', (2 * Math.PI * 19).toString());
+        circle.setAttribute('stroke-dashoffset', (2 * Math.PI * 19).toString());
+        svg.appendChild(circle);
+        dot.appendChild(svg);
+
+        dot.dataset.dotIndex = idx;
+        calDotsContainer.appendChild(dot);
+        calDotEls.push(dot);
+        calArcCircles.push(circle);
+        calTapsPerDot.push(0);
+        idx++;
+      }
+    }
+    // Event delegation on container
+    calDotsContainer.addEventListener('pointerdown', onCalDotTap);
+  }
+
+  function onCalDotTap(e) {
+    const dot = e.target.closest('[data-dot-index]');
+    if (!dot) return;
+    const idx = parseInt(dot.dataset.dotIndex);
+    if (idx !== currentCalDot) return;
+
+    const r = dot.getBoundingClientRect();
+    const cx = Math.round(r.left + r.width / 2);
+    const cy = Math.round(r.top + r.height / 2);
+
+    calTotalTaps++;
+    calTapsPerDot[idx]++;
+
+    webgazer.recordScreenPosition(cx, cy, 'click');
+
+    const maxTaps = 3;
+    const pct = calTapsPerDot[idx] / maxTaps;
+    const circumference = 2 * Math.PI * 19;
+    calArcCircles[idx].setAttribute('stroke-dashoffset', (circumference * (1 - pct)).toString());
+
+    calCount.textContent = calTotalTaps;
+    calBar.style.width = (calTotalTaps / 27 * 100) + '%';
+
+    if (calTapsPerDot[idx] >= maxTaps) {
+      dot.classList.remove('active');
+      dot.classList.add('done');
+      calArcCircles[idx].style.display = 'none';
+      currentCalDot++;
+
+      if (currentCalDot >= 9) {
+        webgazer.applyKalmanFilter(true);
+        startValidation();
+        return;
+      }
+      activateCalDot(currentCalDot);
+    }
+  }
+
+  function activateCalDot(idx) {
+    calDotEls.forEach((d, i) => {
+      d.classList.toggle('dim', i !== idx);
+      d.classList.toggle('active', i === idx);
+    });
+  }
+
+  function startCalibration() {
+    showScreen('cal');
+    currentCalDot = 0;
+    calTotalTaps = 0;
+    calTapsPerDot = calTapsPerDot.map(() => 0);
+    calBar.style.width = '0%';
+    calCount.textContent = '0';
+    const circumference = 2 * Math.PI * 19;
+    calArcCircles.forEach(c => {
+      c.setAttribute('stroke-dashoffset', circumference.toString());
+      c.style.display = '';
+    });
+    calDotEls.forEach(d => {
+      d.classList.remove('active', 'done');
+      d.classList.add('dim');
+    });
+    activateCalDot(0);
+  }
+
+  // ── GAZE APP (screen 4 — preserved from working version) ──
+  function onGaze(data) {
+    if (!data || !isReady) return;
+    gx = data.x; gy = data.y;
+    sx += SMOOTH * (gx - sx);
+    sy += SMOOTH * (gy - sy);
+
+    if (activeOrb) {
+      dwellSamples.push({ x: Math.round(gx), y: Math.round(gy), ts: Date.now() });
+      if (dwellSamples.length > SAMPLE_BUFFER_MAX) dwellSamples.shift();
+    }
+
+    cursor.style.left = sx + 'px';
+    cursor.style.top  = sy + 'px';
+    posVal.textContent = `${Math.round(sx)},${Math.round(sy)}`;
+
+    const hit = nearest(sx, sy);
+    if (hit) {
+      confVal.textContent = hit.conf + '%';
+      if (hit.orb !== activeOrb) {
+        resetOrbs();
+        activeOrb = hit.orb;
+        hit.orb.classList.add('active');
+        beginDwell(hit.orb, hit.conf);
+      }
+    } else {
+      if (activeOrb) resetOrbs();
+      confVal.textContent = '—';
+      detVal.textContent  = '—';
+    }
+  }
+
+  function nearest(px, py) {
+    const thresh = window.innerWidth * 0.25;
+    let best = null, bestD = Infinity;
+    orbs.forEach(o => {
+      const r = o.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const d = Math.hypot(px - cx, py - cy);
+      if (d < bestD) { bestD = d; best = o; }
+    });
+    if (bestD > thresh) return null;
+    return { orb: best, dist: bestD, conf: Math.round((1 - bestD / thresh) * 100) };
+  }
+
+  function beginDwell(orb, conf) {
+    dwellTarget = orb;
+    dwellTimer  = setTimeout(() => confirm(orb, conf), DWELL_MS);
+  }
+
+  function resetOrbs() {
+    clearTimeout(dwellTimer);
+    if (activeOrb) currentOrbResetCount++;  // dwell was interrupted
+    dwellTimer = null; dwellTarget = null; activeOrb = null;
+    dwellSamples = [];
+    orbs.forEach(o => o.classList.remove('active', 'confirmed'));
+  }
+
+  function showFeedback(buttonId, allConfirmArgs) {
+    const overlay  = document.getElementById('feedback-overlay');
+    const label    = document.getElementById('feedback-orb-label');
+    const timerFill = document.getElementById('feedback-timer-fill');
+
+    label.textContent = `orb #${buttonId}`;
+    pendingFeedback   = { buttonId, args: allConfirmArgs };
+
+    // Show overlay
+    overlay.classList.add('visible');
+
+    // Animate timer bar shrinking to 0 over 1.5s
+    timerFill.style.transition = 'none';
+    timerFill.style.width = '100%';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        timerFill.style.transition = 'width 1.5s linear';
+        timerFill.style.width = '0%';
+      });
+    });
+
+    // Auto-confirm as correct after 1.5s
+    feedbackTimer = setTimeout(() => {
+      resolveFeedback(true, false);
+    }, 1500);
+  }
+
+  function resolveFeedback(correct, userExplicit) {
+    clearTimeout(feedbackTimer);
+    const overlay = document.getElementById('feedback-overlay');
+    overlay.classList.remove('visible');
+
+    if (!pendingFeedback) return;
+    const { buttonId, args } = pendingFeedback;
+    pendingFeedback = null;
+
+    // Call save() with feedback fields appended
+    save(...args, correct, userExplicit);
+  }
+
+  function confirm(orb, conf) {
+    orb.classList.replace('active', 'confirmed');
+    const id = orb.dataset.id || orb.dataset.id;
+
+    // Compute median x and y from dwellSamples
+    const xs = dwellSamples.map(s => s.x).sort((a,b) => a-b);
+    const ys = dwellSamples.map(s => s.y).sort((a,b) => a-b);
+    const mid = n => n[Math.floor(n.length/2)];
+    const medX = xs.length ? mid(xs) : Math.round(sx);
+    const medY = ys.length ? mid(ys) : Math.round(sy);
+
+    // Compute std dev
+    const std = arr => {
+      const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+      return Math.sqrt(arr.map(x => (x-mean)**2).reduce((a,b) => a+b, 0) / arr.length);
+    };
+    const stdX = xs.length > 1 ? Math.round(std(xs)) : 0;
+    const stdY = ys.length > 1 ? Math.round(std(ys)) : 0;
+
+    detVal.textContent = `#${id}`;
+    const gazeStats = computeGazeStats(dwellSamples);
+    const resetCount = currentOrbResetCount;
+    currentOrbResetCount = 0;
+
+    const confirmArgs = [
+      id, conf, dwellSamples.slice(),
+      medX, medY, stdX, stdY,
+      blinkDetected, gazeStats, resetCount
+    ];
+    dwellSamples = [];
+
+    // Show feedback overlay instead of saving immediately
+    showFeedback(id, confirmArgs);
+
+    setTimeout(() => { orb.classList.remove('confirmed'); activeOrb = null; }, 900);
+  }
+
+  async function save(buttonId, confidence, samples, medX, medY,
+                      stdX, stdY, blinkAtConfirm, gazeStats,
+                      resetCount, confirmedCorrect, feedbackGiven) {
+    const r = orbs[buttonId - 1].getBoundingClientRect();
+    const payload = {
+      schema_version: SCHEMA_VERSION,
+      session: sessionId,
+      ts: Date.now(),
+      button_id: Number(buttonId),
+      button_cx: Math.round(r.left + r.width / 2),
+      button_cy: Math.round(r.top  + r.height / 2),
+      gaze_raw_x:    Math.round(gx),
+      gaze_raw_y:    Math.round(gy),
+      gaze_smooth_x: Math.round(sx),
+      gaze_smooth_y: Math.round(sy),
+      gaze_median_x: medX,
+      gaze_median_y: medY,
+      gaze_std_x:    stdX,
+      gaze_std_y:    stdY,
+      gaze_samples:  samples,
+      sample_count:  samples.length,
+      blink_at_confirm: blinkAtConfirm,
+      gaze_velocity_mean: gazeStats.velocity_mean,
+      gaze_velocity_max:  gazeStats.velocity_max,
+      stability_score:    gazeStats.stability_score,
+      confidence,
+      screen_w:  window.innerWidth,
+      screen_h:  window.innerHeight,
+      device_pixel_ratio: window.devicePixelRatio || 1,
+      user_agent: navigator.userAgent,
+
+      // Camera resolution at time of capture
+      camera_w: cameraW,
+      camera_h: cameraH,
+      reset_count: resetCount,
+      calibration_error_px: calibrationErrorPx,
+
+      // MediaPipe data (null if face not detected at time of confirm)
+      mp: mpData ? { ...mpData } : null,
+
+      // Feedback fields — added by post-confirmation micro-prompt
+      confirmed_correct: confirmedCorrect,
+      feedback_given:    feedbackGiven,
+      actual_orb:        null,
+    };
+
+    buffer.push(payload);
+
+    try {
+      await fetch('/api/save-gaze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch(e) { console.warn('save failed, buffered', e); }
+  }
+
+  // ── VALIDATION ──
+  const VAL_DOTS = [
+    { x: 0.20, y: 0.25 },
+    { x: 0.80, y: 0.50 },
+    { x: 0.50, y: 0.80 },
+  ];
+  const VAL_DWELL_MS  = 2000;
+  const VAL_SAMPLE_MS = 100;
+
+  function startValidation() {
+    showScreen('validate');
+    validationScores = [];
+    let dotIndex = 0;
+    const valDot = $('val-dot');
+    const valProgress = $('val-progress');
+    const valResult   = $('val-result');
+    valDot.style.display = 'block';
+    valResult.classList.add('hidden');
+
+    function showDot(idx) {
+      if (idx >= VAL_DOTS.length) {
+        finishValidation();
+        return;
+      }
+      const pos = VAL_DOTS[idx];
+      const dotX = pos.x * window.innerWidth;
+      const dotY = pos.y * window.innerHeight;
+      valDot.style.left = dotX + 'px';
+      valDot.style.top  = dotY + 'px';
+      valProgress.textContent = `${idx + 1} / ${VAL_DOTS.length}`;
+
+      const samples = [];
+      const startTs = Date.now();
+
+      const interval = setInterval(async () => {
+        const pred = await webgazer.getCurrentPrediction();
+        if (pred) samples.push({ x: pred.x, y: pred.y });
+
+        if (Date.now() - startTs >= VAL_DWELL_MS) {
+          clearInterval(interval);
+
+          if (samples.length > 0) {
+            const xs = samples.map(s => s.x).sort((a,b) => a-b);
+            const ys = samples.map(s => s.y).sort((a,b) => a-b);
+            const medX = xs[Math.floor(xs.length / 2)];
+            const medY = ys[Math.floor(ys.length / 2)];
+            const err  = Math.sqrt((medX - dotX)**2 + (medY - dotY)**2);
+            validationScores.push(Math.round(err));
+          }
+
+          setTimeout(() => showDot(idx + 1), 400);
+        }
+      }, VAL_SAMPLE_MS);
+    }
+
+    showDot(0);
+  }
+
+  function finishValidation() {
+    const valDot    = $('val-dot');
+    const valResult = $('val-result');
+    valDot.style.display = 'none';
+
+    if (validationScores.length > 0) {
+      calibrationErrorPx = Math.round(
+        validationScores.reduce((a,b) => a+b, 0) / validationScores.length
+      );
+    } else {
+      calibrationErrorPx = null;
+    }
+
+    valResult.classList.remove('hidden', 'good', 'poor');
+    if (calibrationErrorPx !== null && calibrationErrorPx < 120) {
+      valResult.textContent = `calibration good — ${calibrationErrorPx}px error`;
+      valResult.classList.add('good');
+    } else if (calibrationErrorPx !== null) {
+      valResult.textContent = `calibration weak — ${calibrationErrorPx}px error`;
+      valResult.classList.add('poor');
+    } else {
+      valResult.textContent = 'calibration complete';
+      valResult.classList.add('good');
+    }
+
+    setTimeout(() => launchApp(), 2000);
+  }
+
+  function launchApp() {
+    // Clear cal dots from DOM
+    calDotsContainer.innerHTML = '';
+    calDotEls = [];
+    calArcCircles = [];
+    calTapsPerDot = [];
+    showScreen('app');
+    cursor.style.display = 'block';
+    setTimeout(() => { isReady = true; }, 300);
+  }
+
+  // ── INIT (called on start button tap) ──
+  async function init() {
+    const btn = $('start-btn');
+    btn.disabled = true;
+    statusMsg.textContent = 'starting camera…';
+
+    try {
+      const tempStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      tempStream.getTracks().forEach(t => t.stop());
+
+      statusMsg.textContent = 'initializing…';
+
+      webgazer.setGazeListener(onGaze);
+
+      await webgazer
+        .setRegression('ridge')
+        .saveDataAcrossSessions(false)
+        .begin();
+
+      setTimeout(() => {
+        webgazer.showVideo(false);
+        webgazer.showFaceOverlay(false);
+        webgazer.showFaceFeedbackBox(false);
+        webgazer.showPredictionPoints(false);
+
+        // Init MediaPipe Face Mesh
+        const faceMesh = new FaceMesh({ locateFile: file =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+
+        faceMesh.onResults(results => {
+          if (!results.multiFaceLandmarks || !results.multiFaceLandmarks[0]) {
+            mpData = null;
+            return;
+          }
+          const lm = results.multiFaceLandmarks[0];
+
+          // Iris landmarks: 468-472 left eye, 473-477 right eye
+          const leftIris  = lm[468];
+          const rightIris = lm[473];
+
+          // Eye corners for normalization
+          const leftOuter  = lm[33];
+          const leftInner  = lm[133];
+          const rightInner = lm[362];
+          const rightOuter = lm[263];
+
+          // Nose tip and chin for head pose proxy
+          const noseTip  = lm[1];
+          const chin     = lm[152];
+          const foreHead = lm[10];
+          const leftEar  = lm[234];
+          const rightEar = lm[454];
+
+          // Compute normalized iris position within eye socket
+          const leftEyeW  = Math.abs(leftOuter.x  - leftInner.x);
+          const rightEyeW = Math.abs(rightOuter.x - rightInner.x);
+          const leftIrisNorm  = leftEyeW  > 0 ? (leftIris.x  - leftInner.x)  / leftEyeW  : 0.5;
+          const rightIrisNorm = rightEyeW > 0 ? (rightIris.x - rightInner.x) / rightEyeW : 0.5;
+
+          // Head pose proxy from facial geometry
+          const yawProxy   = (noseTip.x - leftEar.x) - (rightEar.x - noseTip.x);
+          const pitchProxy = noseTip.y - (foreHead.y + chin.y) / 2;
+          const eyeLineRoll = Math.atan2(
+            rightIris.y - leftIris.y,
+            rightIris.x - leftIris.x
+          ) * (180 / Math.PI);
+
+          // Eye openness using EAR (Eye Aspect Ratio)
+          function eyeDist(a, b) {
+            return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+          }
+
+          // Left eye EAR
+          const leftV1 = eyeDist(lm[159], lm[145]);
+          const leftV2 = eyeDist(lm[158], lm[153]);
+          const leftH  = eyeDist(lm[33],  lm[133]);
+          leftEyeOpenness  = leftH  > 0 ? ((leftV1 + leftV2) / (2 * leftH)) : 0;
+
+          // Right eye EAR
+          const rightV1 = eyeDist(lm[386], lm[374]);
+          const rightV2 = eyeDist(lm[385], lm[380]);
+          const rightH  = eyeDist(lm[362], lm[263]);
+          rightEyeOpenness = rightH > 0 ? ((rightV1 + rightV2) / (2 * rightH)) : 0;
+
+          // Blink threshold: EAR < 0.2 indicates blink
+          const avgEAR = (leftEyeOpenness + rightEyeOpenness) / 2;
+          blinkDetected = avgEAR < 0.2;
+
+          // Inter-ocular distance (IOD)
+          const iodRaw = eyeDist(leftIris, rightIris);
+          const iodPx = Math.sqrt(
+            ((rightIris.x - leftIris.x) * window.innerWidth)  ** 2 +
+            ((rightIris.y - leftIris.y) * window.innerHeight) ** 2
+          );
+          const iodNorm = iodPx / window.innerWidth;
+
+          mpData = {
+            left_iris_x:  leftIris.x,
+            left_iris_y:  leftIris.y,
+            right_iris_x: rightIris.x,
+            right_iris_y: rightIris.y,
+            left_iris_norm:  Math.round(leftIrisNorm  * 1000) / 1000,
+            right_iris_norm: Math.round(rightIrisNorm * 1000) / 1000,
+            head_yaw:   Math.round(yawProxy   * 1000) / 1000,
+            head_pitch: Math.round(pitchProxy * 1000) / 1000,
+            head_roll:  Math.round(eyeLineRoll * 100) / 100,
+            iod_raw:  Math.round(iodRaw  * 10000) / 10000,
+            iod_px:   Math.round(iodPx),
+            iod_norm: Math.round(iodNorm * 10000) / 10000,
+            left_eye_openness:  Math.round(leftEyeOpenness  * 1000) / 1000,
+            right_eye_openness: Math.round(rightEyeOpenness * 1000) / 1000,
+            blink_detected:     blinkDetected,
+            avg_ear:            Math.round(avgEAR * 1000) / 1000,
+            face_box: {
+              x: Math.round(Math.min(...lm.map(p => p.x)) * window.innerWidth),
+              y: Math.round(Math.min(...lm.map(p => p.y)) * window.innerHeight),
+              w: Math.round((Math.max(...lm.map(p => p.x)) - Math.min(...lm.map(p => p.x))) * window.innerWidth),
+              h: Math.round((Math.max(...lm.map(p => p.y)) - Math.min(...lm.map(p => p.y))) * window.innerHeight),
+            },
+            landmarks_sample: {
+              nose_tip:    { x: noseTip.x,   y: noseTip.y   },
+              chin:        { x: chin.x,      y: chin.y       },
+              left_ear:    { x: leftEar.x,   y: leftEar.y   },
+              right_ear:   { x: rightEar.x,  y: rightEar.y  },
+              left_outer:  { x: leftOuter.x, y: leftOuter.y },
+              left_inner:  { x: leftInner.x, y: leftInner.y },
+              right_inner: { x: rightInner.x,y: rightInner.y},
+              right_outer: { x: rightOuter.x,y: rightOuter.y},
+            }
+          };
+        });
+
+        // Point MediaPipe at WebGazer's internal video element
+        function startMpCamera() {
+          const vid = document.getElementById('webgazerVideoFeed')
+                   || document.querySelector('video');
+          if (!vid || !vid.videoWidth) {
+            setTimeout(startMpCamera, 300);
+            return;
+          }
+          cameraW = vid.videoWidth;
+          cameraH = vid.videoHeight;
+          console.log('Camera resolution:', cameraW, 'x', cameraH);
+          const mpCamera = new Camera(vid, {
+            onFrame: async () => { await faceMesh.send({ image: vid }); },
+            width: vid.videoWidth,
+            height: vid.videoHeight,
+          });
+          mpCamera.start();
+          console.log('MediaPipe started on', vid.videoWidth, 'x', vid.videoHeight);
+        }
+        startMpCamera();
+      }, 1000);
+
+      statusMsg.textContent = 'checking environment…';
+
+      wgVideo = await getWgVideo();
+
+      hiddenCanvas = document.createElement('canvas');
+      hiddenCtx = hiddenCanvas.getContext('2d');
+
+      const envVid = $('env-video');
+      envVid.srcObject = wgVideo.srcObject;
+      await envVid.play();
+
+      showScreen('screen-env');
+
+      envChecksPassedSince = null;
+      videoReadySince = 0;
+      setCheckIcon('ck-bright-icon', 'pending');
+      setCheckIcon('ck-face-icon', 'pending');
+      setCheckIcon('ck-stab-icon', 'pending');
+      envInterval = setInterval(runEnvCheck, CHECK_INTERVAL);
+
+    } catch (err) {
+      console.error(err);
+      statusMsg.textContent = err.message.includes('Permission')
+        ? 'camera denied — check browser settings'
+        : 'could not start — try reloading';
+      btn.disabled = false;
+    }
+  }
+
+  // ── SKIP button ──
+  $('skip-env').addEventListener('click', () => {
+    if (envInterval) clearInterval(envInterval);
+    setCheckIcon('ck-bright-icon', 'pass');
+    setCheckIcon('ck-face-icon', 'pass');
+    setCheckIcon('ck-stab-icon', 'pass');
+    setTimeout(startCalibration, 300);
+  });
+
+  // ── Debug toggle ──
+  if (debugToggle) {
+    debugToggle.addEventListener('click', () => {
+      if (debugInfo) {
+        debugInfo.style.display = (debugInfo.style.display === 'none') ? 'block' : 'none';
+      }
+    });
+  }
+
+  // ── BOOT ──
+  sx = window.innerWidth / 2;
+  sy = window.innerHeight / 2;
+  buildCalDots();
+  $('start-btn').addEventListener('click', init);
+  document.getElementById('feedback-yes').addEventListener('pointerdown', () => {
+    resolveFeedback(true, true);
+  });
+  document.getElementById('feedback-no').addEventListener('pointerdown', () => {
+    resolveFeedback(false, true);
+  });
+  window.__gazeBuffer = buffer;
+})();
+</script>
+</body>
+</html>

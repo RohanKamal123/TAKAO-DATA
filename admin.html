@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Takao — Admin</title>
+  <style>
+    :root {
+      --bg: #0e0e0e; --surface: #1a1a1a; --border: #2a2a2a;
+      --amber: #c97c3a; --amber-dim: #6b3f18;
+      --text: #e8e0d5; --muted: #5a5550; --red: #c94a3a;
+      --mono: 'SF Mono','Fira Code','Cascadia Code',monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--mono); min-height: 100vh;
+      padding: 48px 24px;
+    }
+
+    /* Login */
+    #login {
+      max-width: 320px; margin: 20vh auto;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    #login-title {
+      font-size: 11px; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    input[type=password] {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono);
+      font-size: 13px; padding: 10px 14px; border-radius: 4px;
+      outline: none; width: 100%;
+    }
+    input[type=password]:focus { border-color: var(--amber); }
+    button {
+      background: var(--amber-dim); border: 1px solid var(--amber);
+      color: var(--text); font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 10px 16px;
+      cursor: pointer; border-radius: 4px;
+    }
+    button:hover { background: var(--amber); }
+    #login-err {
+      font-size: 10px; color: var(--red);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      min-height: 14px;
+    }
+
+    /* Dashboard */
+    #dashboard { display: none; }
+
+    .section-label {
+      font-size: 9px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* Stats row */
+    #stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 16px; border-radius: 4px;
+    }
+    .stat-card .val {
+      font-size: 24px; color: var(--amber); margin-bottom: 4px;
+    }
+    .stat-card .lbl {
+      font-size: 9px; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+    }
+
+    /* Controls */
+    #controls {
+      display: flex; gap: 12px; margin-bottom: 24px;
+      flex-wrap: wrap; align-items: center;
+    }
+    #controls select, #controls input[type=number] {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono);
+      font-size: 11px; padding: 8px 10px; border-radius: 4px;
+    }
+    #export-btn {
+      margin-left: auto;
+    }
+
+    /* Scatter plot */
+    #scatter-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: 16px; margin-bottom: 24px;
+    }
+    #scatter-canvas {
+      width: 100%; height: 300px; display: block;
+    }
+
+    /* Sample table */
+    #table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; overflow: hidden; margin-bottom: 24px;
+    }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 11px;
+    }
+    th {
+      background: var(--border); padding: 10px 12px;
+      text-align: left; font-size: 9px; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+      font-weight: normal;
+    }
+    td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(201,124,58,0.04); }
+    .good { color: var(--amber); }
+    .poor { color: var(--red); }
+
+    /* Pagination */
+    #pagination {
+      display: flex; gap: 8px; align-items: center;
+      font-size: 10px; color: var(--muted); margin-bottom: 32px;
+    }
+    #pagination button { padding: 6px 12px; font-size: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login">
+  <div id="login-title">takao / admin</div>
+  <input type="password" id="pwd-input" placeholder="password"
+         autocomplete="current-password"/>
+  <button onclick="doLogin()">enter</button>
+  <div id="login-err"></div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="section-label" style="margin-bottom:24px">
+    takao — dataset admin
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-row">
+    <div class="stat-card">
+      <div class="val" id="stat-total">—</div>
+      <div class="lbl">total samples</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="stat-sessions">—</div>
+      <div class="lbl">sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="stat-avg-stab">—</div>
+      <div class="lbl">avg stability</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="stat-blink-rate">—</div>
+      <div class="lbl">blink rate</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div class="section-label" style="margin-bottom:0">showing</div>
+    <select id="count-sel" onchange="loadData()">
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="200">200</option>
+    </select>
+    <div class="section-label" style="margin-bottom:0">samples</div>
+    <button id="export-btn" onclick="exportJSONL()">export jsonl</button>
+    <button onclick="exportCSV()">export csv</button>
+  </div>
+
+  <!-- Scatter plot -->
+  <div class="section-label">gaze raw vs target (screen coords)</div>
+  <div id="scatter-wrap">
+    <canvas id="scatter-canvas"></canvas>
+  </div>
+
+  <!-- Table -->
+  <div class="section-label">recent samples</div>
+  <div id="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>time</th>
+          <th>btn</th>
+          <th>gaze→target px</th>
+          <th>stability</th>
+          <th>blink</th>
+          <th>cal err</th>
+          <th>samples</th>
+          <th>iod</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div id="pagination">
+    <button onclick="prevPage()">← prev</button>
+    <span id="page-info">page 1</span>
+    <button onclick="nextPage()">next →</button>
+  </div>
+</div>
+
+<script>
+  let pwd = '';
+  let allSamples = [];
+  let total = 0;
+  let offset = 0;
+
+  async function doLogin() {
+    pwd = document.getElementById('pwd-input').value;
+    document.getElementById('login-err').textContent = '';
+    const ok = await loadData();
+    if (ok) {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+    } else {
+      document.getElementById('login-err').textContent = 'invalid password';
+    }
+  }
+
+  document.getElementById('pwd-input')
+    .addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  async function loadData() {
+    const count = document.getElementById('count-sel')?.value || 100;
+    const res = await fetch(
+      `/api/get-gaze?pwd=${encodeURIComponent(pwd)}&count=${count}&offset=${offset}`
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    total      = data.total;
+    allSamples = data.samples;
+    renderStats();
+    renderTable();
+    renderScatter();
+    return true;
+  }
+
+  function renderStats() {
+    document.getElementById('stat-total').textContent = total.toLocaleString();
+    const sessions = new Set(allSamples.map(s => s.session)).size;
+    document.getElementById('stat-sessions').textContent = sessions;
+    const avgStab = allSamples.length
+      ? Math.round(allSamples.reduce((a,s) => a + (s.stability_score||0), 0) / allSamples.length)
+      : '—';
+    document.getElementById('stat-avg-stab').textContent = avgStab;
+    const blinkCount = allSamples.filter(s => s.blink_at_confirm).length;
+    const blinkRate  = allSamples.length
+      ? Math.round(blinkCount / allSamples.length * 100) + '%'
+      : '—';
+    document.getElementById('stat-blink-rate').textContent = blinkRate;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = allSamples.map((s, i) => {
+      const t    = new Date(s.ts).toLocaleTimeString();
+      const errX = s.gaze_raw_x - s.button_cx;
+      const errY = s.gaze_raw_y - s.button_cy;
+      const err  = Math.round(Math.sqrt(errX*errX + errY*errY));
+      const stab = s.stability_score ?? '—';
+      const stabClass = stab > 70 ? 'good' : stab < 40 ? 'poor' : '';
+      const blink = s.blink_at_confirm ? '<span class="poor">yes</span>' : 'no';
+      const cal  = s.calibration_error_px != null ? s.calibration_error_px + 'px' : '—';
+      const calClass = s.calibration_error_px < 120 ? 'good' : 'poor';
+      const iod  = s.mp?.iod_px ?? '—';
+      return `<tr>
+        <td>${offset + i + 1}</td>
+        <td>${t}</td>
+        <td>${s.button_id}</td>
+        <td class="${err < 80 ? 'good' : err > 150 ? 'poor' : ''}">${err}px</td>
+        <td class="${stabClass}">${stab}</td>
+        <td>${blink}</td>
+        <td class="${calClass}">${cal}</td>
+        <td>${s.sample_count ?? '—'}</td>
+        <td>${iod}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderScatter() {
+    const canvas = document.getElementById('scatter-canvas');
+    const dpr    = window.devicePixelRatio || 1;
+    canvas.width  = canvas.offsetWidth  * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+
+    // Normalize to canvas coords using first sample's screen size
+    const sw = allSamples[0]?.screen_w || 390;
+    const sh = allSamples[0]?.screen_h || 844;
+    const nx = x => (x / sw) * W;
+    const ny = y => (y / sh) * H;
+
+    ctx.clearRect(0, 0, W, H);
+
+    allSamples.forEach(s => {
+      // Draw line from raw gaze to button center
+      ctx.beginPath();
+      ctx.moveTo(nx(s.gaze_raw_x), ny(s.gaze_raw_y));
+      ctx.lineTo(nx(s.button_cx),  ny(s.button_cy));
+      ctx.strokeStyle = 'rgba(201,124,58,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Gaze point
+      ctx.beginPath();
+      ctx.arc(nx(s.gaze_raw_x), ny(s.gaze_raw_y), 3, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(201,124,58,0.7)';
+      ctx.fill();
+
+      // Target point
+      ctx.beginPath();
+      ctx.arc(nx(s.button_cx), ny(s.button_cy), 4, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fill();
+    });
+  }
+
+  function prevPage() {
+    const count = parseInt(document.getElementById('count-sel').value);
+    if (offset >= count) { offset -= count; loadData(); }
+  }
+  function nextPage() {
+    const count = parseInt(document.getElementById('count-sel').value);
+    if (offset + count < total) { offset += count; loadData(); }
+    document.getElementById('page-info').textContent =
+      `page ${Math.floor(offset / count) + 1}`;
+  }
+
+  function exportJSONL() {
+    const lines = allSamples.map(s => JSON.stringify(s)).join('\n');
+    download('takao-samples.jsonl', lines, 'application/json');
+  }
+
+  function exportCSV() {
+    const keys = ['schema_version','ts','session','button_id','button_cx',
+      'button_cy','gaze_raw_x','gaze_raw_y','gaze_median_x','gaze_median_y',
+      'gaze_std_x','gaze_std_y','stability_score','gaze_velocity_mean',
+      'sample_count','confidence','blink_at_confirm','reset_count',
+      'calibration_error_px','screen_w','screen_h','device_pixel_ratio',
+      'camera_w','camera_h'];
+    const header = keys.join(',');
+    const rows   = allSamples.map(s =>
+      keys.map(k => {
+        const v = s[k];
+        return v === undefined || v === null ? '' : v;
+      }).join(',')
+    );
+    download('takao-samples.csv', [header, ...rows].join('\n'), 'text/csv');
+  }
+
+  function download(filename, text, type) {
+    const blob = new Blob([text], { type });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>

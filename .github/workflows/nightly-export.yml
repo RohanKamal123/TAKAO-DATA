@@ -1,0 +1,40 @@
+name: Nightly Redis Export
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 2am UTC daily
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run export
+        env:
+          UPSTASH_URL:   ${{ secrets.UPSTASH_URL }}
+          UPSTASH_TOKEN: ${{ secrets.UPSTASH_TOKEN }}
+        run: python scripts/export.py
+
+      - name: Commit and push if changes
+        run: |
+          git config user.name  "takao-export-bot"
+          git config user.email "bot@takao"
+          git add data/
+          git diff --staged --quiet || git commit -m \
+            "export: $(date -u +%Y-%m-%d) nightly backup"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
