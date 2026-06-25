@@ -22,6 +22,30 @@ def redis_set(key, value):
     res.raise_for_status()
     return res.json()
 
+def extract_payload(raw):
+    """
+    save-gaze.js stores each sample as: JSON.stringify([JSON.stringify(body)])
+    So lrange returns elements like: '["{...serialized payload...}"]'
+    This function unwraps that double-wrapping.
+    """
+    parsed = json.loads(raw)
+    # If parsed is a list, the actual payload is the first element (JSON string)
+    if isinstance(parsed, list):
+        if len(parsed) == 0:
+            return None
+        # The first element is the JSON-stringified payload
+        inner = parsed[0]
+        if isinstance(inner, str):
+            return json.loads(inner)
+        # If it's already a dict, return it directly
+        if isinstance(inner, dict):
+            return inner
+        return None
+    # If parsed is already a dict, use it directly
+    if isinstance(parsed, dict):
+        return parsed
+    return None
+
 def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     
@@ -37,11 +61,6 @@ def main():
         cursor = 0
     print(f'Export cursor: {cursor}')
     
-    # Redis LPUSH = newest at index 0
-    # cursor tracks from the END (oldest unexported)
-    # We export from index (total - cursor - 1) down to 0
-    # But simpler: export entire list, skip first `cursor` from end
-    
     if total <= cursor:
         print('No new samples to export.')
         return
@@ -49,8 +68,7 @@ def main():
     new_count = total - cursor
     print(f'New samples to export: {new_count}')
     
-    # Fetch only new samples
-    # LRANGE 0 to (new_count - 1) = newest new_count items
+    # Fetch only new samples (newest first, index 0..new_count-1)
     samples_raw = redis_get(f'lrange/gaze:samples/0/{new_count - 1}')['result']
     
     # Parse and validate
@@ -58,7 +76,10 @@ def main():
     skipped = 0
     for raw in samples_raw:
         try:
-            s = json.loads(raw)
+            s = extract_payload(raw)
+            if s is None:
+                skipped += 1
+                continue
             if not s.get('session') or s.get('button_id') is None:
                 skipped += 1
                 continue
